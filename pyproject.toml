@@ -1,0 +1,19 @@
+[project]
+name = "zaid-game"
+version = "0.1.0"
+description = "Arabic learning and Battleship games in Pygame, with web build via pygbag"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "pygame>=2.5.0",
+]
+
+[tool.pygbag]
+# Entry for web build. pygbag will run `python main.py`.
+script = "main.py"
+title = "Zaid Game"
+icon = "images/abstract_pattern.png"
+width = 1200
+height = 900
+
+
