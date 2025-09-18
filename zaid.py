@@ -3,9 +3,22 @@ import random
 import os
 import math
 from queue import Queue
+import sys
 
 # Initialize Pygame
 pygame.init()
+
+# Detect web (pygbag/emscripten) and gate audio to avoid autoplay issues
+IS_WEB = sys.platform == "emscripten"
+SOUND_ENABLED = True
+try:
+    if IS_WEB:
+        # On web, don't initialize the mixer at start; defer/disable to avoid user-gesture blocks
+        SOUND_ENABLED = False
+    else:
+        pygame.mixer.init()
+except Exception:
+    SOUND_ENABLED = False
 
 # Set up the game window
 WIDTH, HEIGHT = 1200, 900
@@ -43,47 +56,52 @@ letter_positions = []
 # Load sound files
 sounds = {}
 
-# Load multiple correct and wrong sound files
+# Load multiple correct and wrong sound files (only if audio is enabled)
 correct_sounds = []
 wrong_sounds = []
-
-for i in range(1, 4):  # Assuming there are 3 correct and 3 wrong sound files
-    try:
-        correct_sounds.append(pygame.mixer.Sound(os.path.join('sounds', f'correct_{i}.wav')))
-    except FileNotFoundError:
-        print(f"Correct sound 'correct_{i}.wav' not found.")
-    try:
-        wrong_sounds.append(pygame.mixer.Sound(os.path.join('sounds', f'wrong_{i}.wav')))
-    except FileNotFoundError:
-        print(f"Wrong sound 'wrong_{i}.wav' not found.")
+if SOUND_ENABLED:
+    for i in range(1, 4):  # Assuming there are 3 correct and 3 wrong sound files
+        try:
+            correct_sounds.append(pygame.mixer.Sound(os.path.join('sounds', f'correct_{i}.wav')))
+        except FileNotFoundError:
+            print(f"Correct sound 'correct_{i}.wav' not found.")
+        try:
+            wrong_sounds.append(pygame.mixer.Sound(os.path.join('sounds', f'wrong_{i}.wav')))
+        except FileNotFoundError:
+            print(f"Wrong sound 'wrong_{i}.wav' not found.")
 
 # Load general prompt sounds
-try:
-    sounds['find_the_letter'] = pygame.mixer.Sound(os.path.join('sounds', 'find_the_letter.wav'))
-except FileNotFoundError:
-    print("General prompt sound 'find_the_letter.wav' not found.")
-
-try:
-    sounds['find_the_number'] = pygame.mixer.Sound(os.path.join('sounds', 'find_the_number.wav'))
-except FileNotFoundError:
-    print("General prompt sound 'find_the_number.wav' not found.")
-
-try:
-    sounds['find_whos_sound'] = pygame.mixer.Sound(os.path.join('sounds', 'find_whos_sound.wav'))
-except FileNotFoundError:
-    print("General prompt sound 'find_whos_sound.wav' not found.")
-
-for letter in letters:
+if SOUND_ENABLED:
     try:
-        sounds[f'prompt_{letter}'] = pygame.mixer.Sound(os.path.join('sounds', f'prompt_{letter}.wav'))
+        sounds['find_the_letter'] = pygame.mixer.Sound(os.path.join('sounds', 'find_the_letter.wav'))
     except FileNotFoundError:
-        print(f"Sound for {letter} not found.")
+        print("General prompt sound 'find_the_letter.wav' not found.")
 
-for i in range(1, 11):
+if SOUND_ENABLED:
     try:
-        sounds[f'prompt_{i}'] = pygame.mixer.Sound(os.path.join('sounds', f'prompt_{i}.wav'))
+        sounds['find_the_number'] = pygame.mixer.Sound(os.path.join('sounds', 'find_the_number.wav'))
     except FileNotFoundError:
-        print(f"Sound for number {i} not found.")
+        print("General prompt sound 'find_the_number.wav' not found.")
+
+if SOUND_ENABLED:
+    try:
+        sounds['find_whos_sound'] = pygame.mixer.Sound(os.path.join('sounds', 'find_whos_sound.wav'))
+    except FileNotFoundError:
+        print("General prompt sound 'find_whos_sound.wav' not found.")
+
+if SOUND_ENABLED:
+    for letter in letters:
+        try:
+            sounds[f'prompt_{letter}'] = pygame.mixer.Sound(os.path.join('sounds', f'prompt_{letter}.wav'))
+        except FileNotFoundError:
+            print(f"Sound for {letter} not found.")
+
+if SOUND_ENABLED:
+    for i in range(1, 11):
+        try:
+            sounds[f'prompt_{i}'] = pygame.mixer.Sound(os.path.join('sounds', f'prompt_{i}.wav'))
+        except FileNotFoundError:
+            print(f"Sound for number {i} not found.")
 
 # Load arrow image
 arrow_img = pygame.image.load(os.path.join('images', 'arrow.png'))
@@ -100,10 +118,11 @@ for item in who_items:
         who_images[item] = pygame.image.load(os.path.join('who_images', f'{item}.png'))
     except FileNotFoundError:
         print(f"Image for {item} not found.")
-    try:
-        who_sounds[item] = pygame.mixer.Sound(os.path.join('who_sounds', f'{item}.wav'))
-    except FileNotFoundError:
-        print(f"Sound for {item} not found.")
+    if SOUND_ENABLED:
+        try:
+            who_sounds[item] = pygame.mixer.Sound(os.path.join('who_sounds', f'{item}.wav'))
+        except FileNotFoundError:
+            print(f"Sound for {item} not found.")
 
 # Load images for letters, numbers, and words
 letter_images = {}
@@ -145,6 +164,8 @@ def play_sounds_sequence(*sounds_to_play):
             sound_queue.put(sound)
 
 def play_sound_from_queue():
+    if not SOUND_ENABLED:
+        return
     if not sound_queue.empty() and not pygame.mixer.get_busy():
         sound = sound_queue.get()
         sound.play()
@@ -289,6 +310,8 @@ def animate_dancing_items():
 
 # Function to play prompt sound without overlapping
 def play_prompt_sound(current_item):
+    if not SOUND_ENABLED:
+        return
     # Play general prompt sound first if applicable
     if current_category == 'letters' and 'find_the_letter' in sounds:
         sound_queue.put(sounds['find_the_letter'])
@@ -378,7 +401,8 @@ def main():
                         for item, rect in letter_positions:
                             if rect.collidepoint(mouse_pos):
                                 if item == current_item:
-                                    random.choice(correct_sounds).play()
+                                    if correct_sounds:
+                                        random.choice(correct_sounds).play()
                                     animate_correct_item(rect)
                                     animate_dancing_items()
                                     remaining_items = [item for item in (letters if current_category == 'letters' else numbers if current_category == 'numbers' else who_items if current_category == 'who' else words) if item not in used_items]
@@ -392,7 +416,8 @@ def main():
                                         used_items.add(current_item)
                                         play_prompt_sound(current_item)
                                 else:
-                                    random.choice(wrong_sounds).play()
+                                    if wrong_sounds:
+                                        random.choice(wrong_sounds).play()
                                     # Get the correct item rect for arrow animation
                                     current_item_rect = [r for l, r in letter_positions if l == current_item]
                                     if current_item_rect:
