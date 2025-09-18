@@ -1,5 +1,5 @@
 [project]
-name = "zaid-game"
+name = "zaid-games"
 version = "0.1.0"
 description = "Arabic learning and Battleship games in Pygame, with web build via pygbag"
 readme = "README.md"
